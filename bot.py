@@ -3,7 +3,7 @@ import random
 import logging
 import asyncio
 import os
-import aioschedule as schedule
+import schedule
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from flask import Flask
