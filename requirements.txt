@@ -1,3 +1,4 @@
 aiogram
 schedule
 flask
+python-dotenv
