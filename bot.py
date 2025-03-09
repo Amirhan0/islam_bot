@@ -9,7 +9,7 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from flask import Flask
 import threading
-
+load_dotenv()
 # Токен бота
 TOKEN = os.getenv("BOT_TOKEN")
 GROUP_ID = -123456789  # Укажите реальный ID группы
