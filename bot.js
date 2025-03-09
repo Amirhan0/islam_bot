@@ -20,13 +20,12 @@ const getPrayerTimes = async () => {
             params: {
                 city: 'Almaty',
                 country: 'Kazakhstan',
-                method: 2 // Метод расчета (можно настроить)
+                method: 2 // Метод расчета
             }
         });
         return response.data.data.timings;
     } catch (error) {
         console.error('Ошибка при получении времени намаза:', error);
-        // Резервные статические данные на случай ошибки
         return {
             Fajr: "05:30",
             Dhuhr: "12:30",
@@ -64,21 +63,27 @@ bot.command('ayat', (ctx) => {
     ctx.reply(`📖 *${ayat.reference}*\n\n_${ayat.text}_`, { parse_mode: 'Markdown' });
 });
 
-// Обработчик команды /prayer для ручного получения времени намаза
+// Обработчик команды /prayer для получения времени намаза
 bot.command('prayer', async (ctx) => {
     const times = await getPrayerTimes();
-    const message = `🕌 Время намаза в Алматы:\n\n` +
+    const today = new Date().toLocaleDateString('ru-RU', { timeZone: 'Asia/Almaty' });
+
+    const message = `📅 *${today}* \n\n🕌 Время намаза в Алматы:\n\n` +
                    `Фаджр: ${times.Fajr}\n` +
                    `Зухр: ${times.Dhuhr}\n` +
                    `Аср: ${times.Asr}\n` +
                    `Магриб: ${times.Maghrib}\n` +
                    `Иша: ${times.Isha}`;
-    ctx.reply(message);
+    
+    ctx.reply(message, { parse_mode: 'Markdown' });
 });
 
+// Отправка ежедневного аята
 const sendDailyAyat = async () => {
     const ayat = getRandomAyat();
-    const text = `📖 *${ayat.reference}*\n\n_${ayat.text}_`;
+    const today = new Date().toLocaleDateString('ru-RU', { timeZone: 'Asia/Almaty' });
+    const text = `📅 *${today}*\n📖 *${ayat.reference}*\n\n_${ayat.text}_`;
+
     try {
         await bot.telegram.sendMessage(GROUP_ID, text, { parse_mode: 'Markdown' });
         console.log(`Аят успешно отправлен в группу ${GROUP_ID}`);
@@ -87,9 +92,11 @@ const sendDailyAyat = async () => {
     }
 };
 
-// Функция отправки уведомления о намазе
+// Отправка уведомления о намазе
 const sendPrayerNotification = async (prayerName, time) => {
-    const message = `🕌 Наступило время намаза *${prayerName}* в Алматы: ${time}`;
+    const today = new Date().toLocaleDateString('ru-RU', { timeZone: 'Asia/Almaty' });
+    const message = `📅 *${today}* \n\n🕌 Наступило время намаза *${prayerName}* в Алматы: ${time}`;
+
     try {
         await bot.telegram.sendMessage(GROUP_ID, message, { parse_mode: 'Markdown' });
         console.log(`Уведомление о ${prayerName} отправлено в группу ${GROUP_ID}`);
@@ -98,11 +105,11 @@ const sendPrayerNotification = async (prayerName, time) => {
     }
 };
 
-// Функция для планирования уведомлений о намазе
+// Планирование уведомлений о намазе
 const schedulePrayerNotifications = async () => {
     const times = await getPrayerTimes();
-    
-    // Маппинг имен намаза для более красивого вывода
+
+    // Названия намазов на русском
     const prayerNames = {
         Fajr: 'Фаджр',
         Dhuhr: 'Зухр',
@@ -110,12 +117,12 @@ const schedulePrayerNotifications = async () => {
         Maghrib: 'Магриб',
         Isha: 'Иша'
     };
+
+    // Очистка предыдущих заданий
     schedule.gracefulShutdown().then(() => {
-        // Планирование уведомлений для каждого намаза
         Object.entries(times).forEach(([prayer, time]) => {
             const [hours, minutes] = time.split(':');
-            // Преобразуем время в UTC (Алматы +6, вычитаем 6 часов)
-            const utcHours = (parseInt(hours) - 6 + 24) % 24;
+            const utcHours = (parseInt(hours) - 5 + 24) % 24; // Алматы UTC+5
             
             const rule = new schedule.RecurrenceRule();
             rule.hour = utcHours;
@@ -125,20 +132,22 @@ const schedulePrayerNotifications = async () => {
             schedule.scheduleJob(rule, () => {
                 sendPrayerNotification(prayerNames[prayer], time);
             });
+
             console.log(`Запланировано уведомление для ${prayerNames[prayer]} на ${time} (UTC ${utcHours}:${minutes})`);
         });
 
-        // Планирование ежедневного аята в 12:00 по Алматы (06:00 UTC)
-        schedule.scheduleJob('00 06 * * *', sendDailyAyat);
+        // Запланировать отправку ежедневного аята в 12:00 по Алматы (07:00 UTC)
+        schedule.scheduleJob('00 07 * * *', sendDailyAyat);
     });
 };
 
-// Обновление расписания каждый день в полночь по Алматы (18:00 UTC предыдущего дня)
-schedule.scheduleJob('00 18 * * *', () => {
+// Обновление расписания каждый день в 00:00 по Алматы (19:00 UTC предыдущего дня)
+schedule.scheduleJob('00 19 * * *', () => {
     console.log('Обновление расписания намазов');
     schedulePrayerNotifications();
 });
 
+// Запуск сервера Express
 app.get('/', (req, res) => {
     res.send('Бот работает!');
 });
