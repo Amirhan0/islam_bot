@@ -7,25 +7,25 @@ const schedule = require('node-schedule');
 const axios = require('axios');
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
-const GROUP_ID = -123456789; 
+const GROUP_ID = process.env.GROUP_ID || -123456789; // Убедитесь, что GROUP_ID указан в .env
 
 const bot = new Telegraf(BOT_TOKEN);
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Получение времени намаза через API для Алматы
 const getPrayerTimes = async () => {
     try {
         const response = await axios.get('http://api.aladhan.com/v1/timingsByCity', {
             params: {
                 city: 'Almaty',
                 country: 'Kazakhstan',
-                method: 2 // Метод расчета
+                method: 2
             }
         });
+        console.log('API response:', response.data.data.timings);
         return response.data.data.timings;
     } catch (error) {
-        console.error('Ошибка при получении времени намаза:', error);
+        console.error('Ошибка при получении времени намаза:', error.message);
         return {
             Fajr: "05:30",
             Dhuhr: "12:30",
@@ -40,14 +40,14 @@ const getRandomAyat = () => {
     try {
         const data = fs.readFileSync(path.join(__dirname, 'ayats.json'), 'utf-8');
         const ayats = JSON.parse(data);
+        console.log('Ayats loaded:', ayats.length);
         return ayats[Math.floor(Math.random() * ayats.length)];
     } catch (error) {
-        console.error('Ошибка при чтении ayats.json:', error);
+        console.error('Ошибка при чтении ayats.json:', error.message);
         return { reference: 'Ошибка', text: 'Не удалось загрузить аят' };
     }
 };
 
-// Обработчик команды /start
 bot.start((ctx) => {
     ctx.reply(
         'Ассаламу алейкум ва рахматулахи ва баракатух! \n\n' +
@@ -57,28 +57,25 @@ bot.start((ctx) => {
     );
 });
 
-// Обработчик команды /ayat
 bot.command('ayat', (ctx) => {
     const ayat = getRandomAyat();
     ctx.reply(`📖 *${ayat.reference}*\n\n_${ayat.text}_`, { parse_mode: 'Markdown' });
 });
 
-// Обработчик команды /prayer для получения времени намаза
 bot.command('prayer', async (ctx) => {
     const times = await getPrayerTimes();
     const today = new Date().toLocaleDateString('ru-RU', { timeZone: 'Asia/Almaty' });
 
     const message = `📅 *${today}* \n\n🕌 Время намаза в Алматы:\n\n` +
-                   `Фаджр: ${times.Fajr}\n` +
-                   `Зухр: ${times.Dhuhr}\n` +
-                   `Аср: ${times.Asr}\n` +
-                   `Магриб: ${times.Maghrib}\n` +
-                   `Иша: ${times.Isha}`;
-    
+        `Фаджр: ${times.Fajr}\n` +
+        `Зухр: ${times.Dhuhr}\n` +
+        `Аср: ${times.Asr}\n` +
+        `Магриб: ${times.Maghrib}\n` +
+        `Иша: ${times.Isha}`;
+
     ctx.reply(message, { parse_mode: 'Markdown' });
 });
 
-// Отправка ежедневного аята
 const sendDailyAyat = async () => {
     const ayat = getRandomAyat();
     const today = new Date().toLocaleDateString('ru-RU', { timeZone: 'Asia/Almaty' });
@@ -88,11 +85,10 @@ const sendDailyAyat = async () => {
         await bot.telegram.sendMessage(GROUP_ID, text, { parse_mode: 'Markdown' });
         console.log(`Аят успешно отправлен в группу ${GROUP_ID}`);
     } catch (error) {
-        console.error('Ошибка при отправке аята:', error);
+        console.error('Ошибка при отправке аята:', error.message);
     }
 };
 
-// Отправка уведомления о намазе
 const sendPrayerNotification = async (prayerName, time) => {
     const today = new Date().toLocaleDateString('ru-RU', { timeZone: 'Asia/Almaty' });
     const message = `📅 *${today}* \n\n🕌 Наступило время намаза *${prayerName}* в Алматы: ${time}`;
@@ -101,15 +97,13 @@ const sendPrayerNotification = async (prayerName, time) => {
         await bot.telegram.sendMessage(GROUP_ID, message, { parse_mode: 'Markdown' });
         console.log(`Уведомление о ${prayerName} отправлено в группу ${GROUP_ID}`);
     } catch (error) {
-        console.error(`Ошибка при отправке уведомления о ${prayerName}:`, error);
+        console.error(`Ошибка при отправке уведомления о ${prayerName}:`, error.message);
     }
 };
 
-// Планирование уведомлений о намазе
 const schedulePrayerNotifications = async () => {
+    console.log('Запуск планирования уведомлений о намазе');
     const times = await getPrayerTimes();
-
-    // Названия намазов на русском
     const prayerNames = {
         Fajr: 'Фаджр',
         Dhuhr: 'Зухр',
@@ -118,36 +112,35 @@ const schedulePrayerNotifications = async () => {
         Isha: 'Иша'
     };
 
-    // Очистка предыдущих заданий
-    schedule.gracefulShutdown().then(() => {
-        Object.entries(times).forEach(([prayer, time]) => {
+
+    const requiredPrayers = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
+
+
+    Object.entries(times)
+        .filter(([prayer]) => requiredPrayers.includes(prayer))
+        .forEach(([prayer, time]) => {
             const [hours, minutes] = time.split(':');
-            const utcHours = (parseInt(hours) - 5 + 24) % 24; // Алматы UTC+5
-            
             const rule = new schedule.RecurrenceRule();
-            rule.hour = utcHours;
+            rule.hour = parseInt(hours);
             rule.minute = parseInt(minutes);
-            rule.tz = 'UTC';
+            rule.tz = 'Asia/Almaty';
 
             schedule.scheduleJob(rule, () => {
                 sendPrayerNotification(prayerNames[prayer], time);
             });
 
-            console.log(`Запланировано уведомление для ${prayerNames[prayer]} на ${time} (UTC ${utcHours}:${minutes})`);
+            console.log(`Запланировано уведомление для ${prayerNames[prayer]} на ${time} (Алматы)`);
         });
 
-        // Запланировать отправку ежедневного аята в 12:00 по Алматы (07:00 UTC)
-        schedule.scheduleJob('00 07 * * *', sendDailyAyat);
-    });
+    schedule.scheduleJob({ hour: 12, minute: 0, tz: 'Asia/Almaty' }, sendDailyAyat);
+    console.log('Ежедневный аят запланирован на 12:00 (Алматы)');
 };
 
-// Обновление расписания каждый день в 00:00 по Алматы (19:00 UTC предыдущего дня)
-schedule.scheduleJob('00 19 * * *', () => {
+schedule.scheduleJob({ hour: 0, minute: 0, tz: 'Asia/Almaty' }, () => {
     console.log('Обновление расписания намазов');
     schedulePrayerNotifications();
 });
 
-// Запуск сервера Express
 app.get('/', (req, res) => {
     res.send('Бот работает!');
 });
@@ -156,13 +149,19 @@ app.listen(PORT, () => {
     console.log(`Сервер запущен на порту ${PORT}`);
 });
 
-// Запуск бота и первоначальное планирование
+bot.on('message', (ctx) => {
+    console.log('Chat ID:', ctx.chat.id);
+    ctx.reply(`Chat ID: ${ctx.chat.id}`);
+});
+
 bot.launch()
     .then(() => {
-        console.log('Бот запущен');
-        schedulePrayerNotifications(); // Первоначальное планирование
+        console.log('Бот успешно запущен');
+        schedulePrayerNotifications();
     })
-    .catch(console.error);
+    .catch((error) => {
+        console.error('Ошибка при запуске бота:', error.message);
+    });
 
 process.once('SIGINT', () => bot.stop('SIGINT'));
 process.once('SIGTERM', () => bot.stop('SIGTERM'));
