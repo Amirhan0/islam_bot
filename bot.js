@@ -7,7 +7,7 @@ const schedule = require('node-schedule');
 const axios = require('axios');
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
-const GROUP_ID = process.env.GROUP_ID || -123456789; // Убедитесь, что GROUP_ID указан в .env
+const GROUP_ID = process.env.GROUP_ID || -1002281200730; // Убедитесь, что GROUP_ID указан в .env
 
 const bot = new Telegraf(BOT_TOKEN);
 const app = express();
