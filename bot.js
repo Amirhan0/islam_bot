@@ -149,11 +149,6 @@ app.listen(PORT, () => {
     console.log(`Сервер запущен на порту ${PORT}`);
 });
 
-bot.on('message', (ctx) => {
-    console.log('Chat ID:', ctx.chat.id);
-    ctx.reply(`Chat ID: ${ctx.chat.id}`);
-});
-
 bot.launch()
     .then(() => {
         console.log('Бот успешно запущен');
