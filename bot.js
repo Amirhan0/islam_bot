@@ -121,7 +121,7 @@ const schedulePrayerNotifications = async () => {
         .forEach(([prayer, time]) => {
             const [hours, minutes] = time.split(':');
             const rule = new schedule.RecurrenceRule();
-            rule.hour = parseInt(hours);
+            rule.hour = parseInt(hours) + 1;
             rule.minute = parseInt(minutes);
             rule.tz = 'Asia/Almaty';
 
