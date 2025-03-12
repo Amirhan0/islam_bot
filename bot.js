@@ -91,7 +91,7 @@ const sendDailyAyat = async () => {
 
 const sendPrayerNotification = async (prayerName, time) => {
     const today = new Date().toLocaleDateString('ru-RU', { timeZone: 'Asia/Almaty' });
-    const message = `📅 *${today}* \n\n🕌 Наступило время намаза *${prayerName}* в Алматы: ${time}`;
+    const message = `📅 *${today}* \n\n🕌 Наступает время намаза *${prayerName}* в Алматы: ${time}`;
 
     try {
         await bot.telegram.sendMessage(GROUP_ID, message, { parse_mode: 'Markdown' });
