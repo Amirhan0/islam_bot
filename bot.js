@@ -22,7 +22,6 @@ const getPrayerTimes = async () => {
                 method: 2
             }
         });
-        console.log('API response:', response.data.data.timings);
         return response.data.data.timings;
     } catch (error) {
         console.error('Ошибка при получении времени намаза:', error.message);
@@ -89,57 +88,55 @@ const sendDailyAyat = async () => {
     }
 };
 
-const sendPrayerNotification = async (prayerName, time) => {
-    const today = new Date().toLocaleDateString('ru-RU', { timeZone: 'Asia/Almaty' });
-    const message = `📅 *${today}* \n\n🕌 Наступило время намаза *${prayerName}* в Алматы: ${time}`;
+// const sendPrayerNotification = async (prayerName, time) => {
+//     const today = new Date().toLocaleDateString('ru-RU', { timeZone: 'Asia/Almaty' });
+//     const message = `📅 *${today}* \n\n🕌 Наступило время намаза *${prayerName}* в Алматы: ${time}`;
 
-    try {
-        await bot.telegram.sendMessage(GROUP_ID, message, { parse_mode: 'Markdown' });
-        console.log(`Уведомление о ${prayerName} отправлено в группу ${GROUP_ID}`);
-    } catch (error) {
-        console.error(`Ошибка при отправке уведомления о ${prayerName}:`, error.message);
-    }
-};
+//     try {
+//         await bot.telegram.sendMessage(GROUP_ID, message, { parse_mode: 'Markdown' });
+//         console.log(`Уведомление о ${prayerName} отправлено в группу ${GROUP_ID}`);
+//     } catch (error) {
+//         console.error(`Ошибка при отправке уведомления о ${prayerName}:`, error.message);
+//     }
+// };
 
 const schedulePrayerNotifications = async () => {
-    console.log('Запуск планирования уведомлений о намазе');
-    const times = await getPrayerTimes();
-    const prayerNames = {
-        Fajr: 'Фаджр',
-        Dhuhr: 'Зухр',
-        Asr: 'Аср',
-        Maghrib: 'Магриб',
-        Isha: 'Иша'
-    };
+    // console.log('Запуск планирования уведомлений о намазе');
+    // const times = await getPrayerTimes();
+    // const prayerNames = {
+        // Fajr: 'Фаджр',
+        // Dhuhr: 'Зухр',
+        // Asr: 'Аср',
+        // Maghrib: 'Магриб',
+        // Isha: 'Иша'
+    // };
 
 
-    const requiredPrayers = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
+    // const requiredPrayers = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
 
 
-    Object.entries(times)
-        .filter(([prayer]) => requiredPrayers.includes(prayer))
-        .forEach(([prayer, time]) => {
-            const [hours, minutes] = time.split(':');
-            const rule = new schedule.RecurrenceRule();
-            rule.hour = parseInt(hours);
-            rule.minute = parseInt(minutes);
-            rule.tz = 'Asia/Almaty';
+    
+    // Object.entries(times)
+    //     .filter(([prayer]) => requiredPrayers.includes(prayer))
+    //     .forEach(([prayer, time]) => {
+    //         const [hours, minutes] = time.split(':');
+    //         const rule = new schedule.RecurrenceRule();
+    //         rule.hour = parseInt(hours);
+    //         rule.minute = parseInt(minutes);
+    //         rule.tz = 'Asia/Almaty';
 
-            schedule.scheduleJob(rule, () => {
-                sendPrayerNotification(prayerNames[prayer], time);
-            });
+    //         schedule.scheduleJob(rule, () => {
+    //             sendPrayerNotification(prayerNames[prayer], time);
+    //         });
 
-            console.log(`Запланировано уведомление для ${prayerNames[prayer]} на ${time} (Алматы)`);
-        });
+    //         console.log(`Запланировано уведомление для ${prayerNames[prayer]} на ${time} (Алматы)`);
+    //     });
 
     schedule.scheduleJob({ hour: 12, minute: 0, tz: 'Asia/Almaty' }, sendDailyAyat);
+    schedule.scheduleJob({ hour: 18, minute: 0, tz: 'Asia/Almaty' }, sendDailyAyat);
     console.log('Ежедневный аят запланирован на 12:00 (Алматы)');
 };
 
-schedule.scheduleJob({ hour: 0, minute: 0, tz: 'Asia/Almaty' }, () => {
-    console.log('Обновление расписания намазов');
-    schedulePrayerNotifications();
-});
 
 app.get('/', (req, res) => {
     res.send('Бот работает!');
