@@ -22,10 +22,6 @@ const getPrayerTimes = async () => {
                 method: 8
             }
         });
-<<<<<<< HEAD
-=======
-        console.log('API response:', response.data.data.meta);
->>>>>>> 40ef1ec7b6abc1cdaee1e546f97279bb5d05534a
         return response.data.data.timings;
     } catch (error) {
         console.error('Ошибка при получении времени намаза:', error.message);
@@ -92,15 +88,9 @@ const sendDailyAyat = async () => {
     }
 };
 
-<<<<<<< HEAD
 // const sendPrayerNotification = async (prayerName, time) => {
 //     const today = new Date().toLocaleDateString('ru-RU', { timeZone: 'Asia/Almaty' });
 //     const message = `📅 *${today}* \n\n🕌 Наступило время намаза *${prayerName}* в Алматы: ${time}`;
-=======
-const sendPrayerNotification = async (prayerName, time) => {
-    const today = new Date().toLocaleDateString('ru-RU', { timeZone: 'Asia/Almaty' });
-    const message = `📅 *${today}* \n\n🕌 Наступает время намаза *${prayerName}* в Алматы: ${time}`;
->>>>>>> 40ef1ec7b6abc1cdaee1e546f97279bb5d05534a
 
 //     try {
 //         await bot.telegram.sendMessage(GROUP_ID, message, { parse_mode: 'Markdown' });
