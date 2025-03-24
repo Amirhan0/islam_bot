@@ -1,77 +1,106 @@
 require('dotenv').config();
 const { Telegraf } = require('telegraf');
 const express = require('express');
-const fs = require('fs');
+const fs = require('fs').promises; // Используем промисы для асинхронного чтения
 const path = require('path');
 const schedule = require('node-schedule');
 
-const BOT_TOKEN = process.env.BOT_TOKEN;
-const GROUP_ID = process.env.GROUP_ID || -1002281200730;
+const BOT_TOKEN = process.env.BOT_TOKEN || throwError('BOT_TOKEN не указан в .env');
+const GROUP_ID = process.env.GROUP_ID || '-1002281200730';
+const PORT = process.env.PORT || 5000;
+const TIMEZONE = 'Asia/Almaty';
+
+// Константы для сообщений
+const WELCOME_MESSAGE = `
+Ассаламу алейкум ва рахматулахи ва баракатух! 
+
+Я Басир — ваш спутник на пути к духовному свету.
+Каждый день в 12:00 и 18:00 я буду приносить вам аяты из Священного Корана.
+`;
 
 const bot = new Telegraf(BOT_TOKEN);
 const app = express();
-const PORT = process.env.PORT || 5000;
 
-const getRandomAyat = () => {
+// У Ascинхронная функция для получения случайного аята
+async function getRandomAyat() {
     try {
-        const data = fs.readFileSync(path.join(__dirname, 'ayats.json'), 'utf-8');
+        const data = await fs.readFile(path.join(__dirname, 'ayats.json'), 'utf-8');
         const ayats = JSON.parse(data);
-        console.log('Ayats loaded:', ayats.length);
         return ayats[Math.floor(Math.random() * ayats.length)];
     } catch (error) {
         console.error('Ошибка при чтении ayats.json:', error.message);
         return { reference: 'Ошибка', text: 'Не удалось загрузить аят' };
     }
-};
+}
 
-bot.start((ctx) => {
-    ctx.reply(
-        'Ассаламу алейкум ва рахматулахи ва баракатух! \n\n' +
-        'Я Басир — ваш спутник на пути к духовному свету.\n' +
-        'Каждый день в 12:00 и 18:00 я буду приносить вам аяты из Священного Корана.'
-    );
+// Форматирование сообщения с аятом
+function formatAyatMessage(ayat) {
+    const today = new Date().toLocaleDateString('ru-RU', { timeZone: TIMEZONE });
+    return `📅 *${today}*\n📖 *${ayat.reference}*\n\n_${ayat.text}_`;
+}
+
+// Команда /start
+bot.start((ctx) => ctx.reply(WELCOME_MESSAGE.trim()));
+
+// Команда /ayat
+bot.command('ayat', async (ctx) => {
+    const ayat = await getRandomAyat();
+    await ctx.reply(formatAyatMessage(ayat), { parse_mode: 'Markdown' });
 });
 
-bot.command('ayat', (ctx) => {
-    const ayat = getRandomAyat();
-    ctx.reply(`\ud83d\udcda *${ayat.reference}*\n\n_${ayat.text}_`, { parse_mode: 'Markdown' });
-});
-
-const sendDailyAyat = async () => {
-    const ayat = getRandomAyat();
-    const today = new Date().toLocaleDateString('ru-RU', { timeZone: 'Asia/Almaty' });
-    const text = `\ud83d\udcc5 *${today}*\n\ud83d\udcda *${ayat.reference}*\n\n_${ayat.text}_`;
-
+// Отправка ежедневного аята
+async function sendDailyAyat() {
+    const ayat = await getRandomAyat();
     try {
-        await bot.telegram.sendMessage(GROUP_ID, text, { parse_mode: 'Markdown' });
-        console.log(`Аят успешно отправлен в группу ${GROUP_ID}`);
+        await bot.telegram.sendMessage(GROUP_ID, formatAyatMessage(ayat), { parse_mode: 'Markdown' });
+        console.log(`Аят отправлен в группу ${GROUP_ID}`);
     } catch (error) {
         console.error('Ошибка при отправке аята:', error.message);
     }
-};
+}
 
-const scheduleAyatNotifications = () => {
-    schedule.scheduleJob({ hour: 12, minute: 0, tz: 'Asia/Almaty' }, sendDailyAyat);
-    schedule.scheduleJob({ hour: 18, minute: 0, tz: 'Asia/Almaty' }, sendDailyAyat);
-    console.log('Ежедневные аяты запланированы на 12:00 и 18:00 (Алматы)');
-};
+// Планирование задач
+function scheduleAyatNotifications() {
+    const times = [
+        { hour: 12, minute: 0 },
+        { hour: 18, minute: 0 },
+    ];
 
-app.get('/', (req, res) => {
-    res.send('Бот работает!');
-});
+    times.forEach(({ hour, minute }) => {
+        schedule.scheduleJob({ hour, minute, tz: TIMEZONE }, sendDailyAyat);
+        console.log(`Запланирована отправка аята на ${hour}:${minute} (${TIMEZONE})`);
+    });
+}
 
-app.listen(PORT, () => {
-    console.log(`Сервер запущен на порту ${PORT}`);
-});
+// Express сервер
+app.get('/', (req, res) => res.send('Бот работает!'));
 
-bot.launch()
-    .then(() => {
+// Запуск
+async function start() {
+    try {
+        app.listen(PORT, () => console.log(`Сервер запущен на порту ${PORT}`));
+        await bot.launch();
         console.log('Бот успешно запущен');
         scheduleAyatNotifications();
-    })
-    .catch((error) => {
-        console.error('Ошибка при запуске бота:', error.message);
-    });
+    } catch (error) {
+        console.error('Ошибка при запуске:', error.message);
+    }
+}
 
-process.once('SIGINT', () => bot.stop('SIGINT'));
-process.once('SIGTERM', () => bot.stop('SIGTERM'));
+// Graceful shutdown
+function shutdown(signal) {
+    console.log(`${signal} получен, завершаем работу...`);
+    schedule.gracefulShutdown()
+        .then(() => bot.stop(signal))
+        .then(() => process.exit(0));
+}
+
+process.once('SIGINT', () => shutdown('SIGINT'));
+process.once('SIGTERM', () => shutdown('SIGTERM'));
+
+start();
+
+// Вспомогательная функция для проверки переменных окружения
+function throwError(message) {
+    throw new Error(message);
+}
