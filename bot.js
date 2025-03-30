@@ -113,7 +113,7 @@ async function sendDailyAyat() {
 }
 
 // Расписание по времени Алматы (UTC+6)
-schedule.scheduleJob('0 6 * * *', sendDailyAyat);  // 06:00 UTC = 12:00 Алматы
+schedule.scheduleJob('55 13 * * *', sendDailyAyat);  // 06:00 UTC = 12:00 Алматы
 schedule.scheduleJob('0 12 * * *', sendDailyAyat); // 12:00 UTC = 18:00 Алматы
 
 // Веб-сервер
