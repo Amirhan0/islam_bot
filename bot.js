@@ -103,7 +103,7 @@ bot.command('test', async (ctx) => {
 
 // Расписание с учетом часового пояса Алматы
 const job = new CronJob(
-    '01 20 * * *', // 19:55 по Алматы
+    '05 19 * * *', // 19:55 по Алматы
     () => {
         console.log(`Задача запущена в ${new Date().toLocaleString('ru-RU', { timeZone: 'Asia/Almaty' })} (Алматы)`);
         sendDailyAyat();
